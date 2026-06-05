@@ -23,12 +23,18 @@ dev = [
     "ruff>=0.4",
 ]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
 [tool.ruff]
 target-version = "py39"
 line-length = 120
+
+[tool.ruff.lint.per-file-ignores]
+# Notebooks use %run for shared scope — ruff can't see injected names
+"notebooks/00_config.py" = ["E402"]
+"notebooks/01_functions.py" = ["F821"]
+"notebooks/02_exploration.py" = ["F821"]
+"notebooks/03_feature_engineering.py" = ["F821"]
+"notebooks/04_model_training.py" = ["F821"]
+"notebooks/05_evaluation.py" = ["F821", "F401"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

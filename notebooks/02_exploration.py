@@ -2,27 +2,16 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -e /Workspace/Repos/aalsinat@damm.com/pricing --quiet
+# MAGIC %run ./00_config
 
 # COMMAND ----------
 
-dbutils.library.restartPython()
+# MAGIC %run ./01_functions
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC # Data Exploration & Diagnostics (Phase 1)
-
-# COMMAND ----------
-
-from pricing.data.loader import load_fact_ventas, load_fact_margen, load_dim_material, load_dim_establecimiento
-from pricing.features.engineering import build_pocket_price_waterfall
-from pricing.diagnostics.waterfall import (
-    summarize_price_band,
-    summarize_leakage,
-    flag_sparse_cells,
-    flag_negative_volume,
-)
 
 # COMMAND ----------
 

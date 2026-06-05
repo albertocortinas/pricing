@@ -1,3 +1,17 @@
+# Databricks notebook source
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Configuration & Data Loaders
+# MAGIC
+# MAGIC Shared constants and data loading functions. Include in other notebooks via:
+# MAGIC ```
+# MAGIC %run ./00_config
+# MAGIC ```
+
+# COMMAND ----------
+
 # ---------------------------------------------------------------------------
 # Unity Catalog table references
 # ---------------------------------------------------------------------------
@@ -86,3 +100,26 @@ ON_INVOICE_CODES = {"100", "210", "300", "420", "740"}
 OFF_INVOICE_CODES = {"920"}
 COST_CODES = {"858", "859", "861", "890", "954", "956"}
 DISTRIBUTOR_CODES = {"900", "901", "902"}
+
+# COMMAND ----------
+
+# ---------------------------------------------------------------------------
+# Data loaders
+# ---------------------------------------------------------------------------
+from pyspark.sql import DataFrame, SparkSession
+
+
+def load_dim_material(spark: SparkSession) -> DataFrame:
+    return spark.read.table(DIM_MATERIAL)
+
+
+def load_dim_establecimiento(spark: SparkSession) -> DataFrame:
+    return spark.read.table(DIM_ESTABLECIMIENTO)
+
+
+def load_fact_ventas(spark: SparkSession) -> DataFrame:
+    return spark.read.table(FACT_VENTAS)
+
+
+def load_fact_margen(spark: SparkSession) -> DataFrame:
+    return spark.read.table(FACT_MARGEN)

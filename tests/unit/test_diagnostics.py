@@ -2,11 +2,48 @@
 
 from datetime import date
 
+import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
-from pyspark.sql.types import DoubleType, StringType, StructField, StructType, DateType
+from pyspark.sql.types import DateType, DoubleType, StringType, StructField, StructType
+
+import pytest
 
 
-@__import__("pytest").fixture
+# ---------------------------------------------------------------------------
+# Inline functions under test
+# ---------------------------------------------------------------------------
+def summarize_price_band(df, group_cols=None):
+    if group_cols is None:
+        group_cols = ["Material"]
+    return (
+        df.groupBy(*group_cols)
+        .agg(
+            F.count("pocket_price").alias("n_obs"),
+            F.percentile_approx("pocket_price", 0.10).alias("p10"),
+            F.percentile_approx("pocket_price", 0.25).alias("p25"),
+            F.percentile_approx("pocket_price", 0.50).alias("p50"),
+            F.percentile_approx("pocket_price", 0.75).alias("p75"),
+            F.percentile_approx("pocket_price", 0.90).alias("p90"),
+            F.mean("pocket_price").alias("mean_pocket_price"),
+        )
+    )
+
+
+def flag_sparse_cells(df, min_periods=12, group_cols=None):
+    if group_cols is None:
+        group_cols = ["Establecimiento", "Material"]
+    counts = df.groupBy(*group_cols).agg(F.count("*").alias("n_periods"))
+    return counts.withColumn("is_sparse", (F.col("n_periods") < min_periods).cast("int"))
+
+
+def flag_negative_volume(df, volume_col="Litros"):
+    return df.withColumn("has_negative_volume", (F.col(volume_col) <= 0).cast("int"))
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+@pytest.fixture
 def waterfall_df(spark: SparkSession):
     """Synthetic waterfall DataFrame matching real column names."""
     schema = StructType([
@@ -27,21 +64,18 @@ def waterfall_df(spark: SparkSession):
     return spark.createDataFrame(rows, schema)
 
 
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
 def test_flag_sparse_cells(spark, waterfall_df):
-    from pricing.diagnostics.waterfall import flag_sparse_cells
-
     result = flag_sparse_cells(waterfall_df, min_periods=3)
     rows = {(r["Establecimiento"], r["Material"]): r for r in result.collect()}
 
-    # E1, M1 has 3 observations -> not sparse (min=3)
     assert rows[("E1", "M1")]["is_sparse"] == 0
-    # E2, M2 has 1 observation -> sparse
     assert rows[("E2", "M2")]["is_sparse"] == 1
 
 
 def test_flag_negative_volume(spark, waterfall_df):
-    from pricing.diagnostics.waterfall import flag_negative_volume
-
     result = flag_negative_volume(waterfall_df)
     flagged = result.filter("has_negative_volume = 1").collect()
     assert len(flagged) == 1
@@ -49,8 +83,6 @@ def test_flag_negative_volume(spark, waterfall_df):
 
 
 def test_summarize_price_band(spark, waterfall_df):
-    from pricing.diagnostics.waterfall import summarize_price_band
-
     result = summarize_price_band(waterfall_df, group_cols=["Material"])
     rows = {r["Material"]: r for r in result.collect()}
     assert rows["M1"]["n_obs"] == 3

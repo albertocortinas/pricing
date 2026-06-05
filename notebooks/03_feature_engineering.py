@@ -2,25 +2,16 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -e /Workspace/Repos/aalsinat@damm.com/pricing --quiet
+# MAGIC %run ./00_config
 
 # COMMAND ----------
 
-dbutils.library.restartPython()
+# MAGIC %run ./01_functions
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC # Feature Engineering
-
-# COMMAND ----------
-
-from pricing.data.loader import load_fact_ventas, load_fact_margen, load_dim_material, load_dim_establecimiento
-from pricing.features.engineering import (
-    build_pocket_price_waterfall,
-    build_price_ratios,
-    build_model_features,
-)
 
 # COMMAND ----------
 

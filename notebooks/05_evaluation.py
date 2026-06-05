@@ -2,11 +2,11 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -e /Workspace/Repos/aalsinat@damm.com/pricing --quiet
+# MAGIC %run ./00_config
 
 # COMMAND ----------
 
-dbutils.library.restartPython()
+# MAGIC %run ./01_functions
 
 # COMMAND ----------
 
@@ -16,17 +16,6 @@ dbutils.library.restartPython()
 # COMMAND ----------
 
 import numpy as np
-
-from pricing.evaluation.metrics import (
-    compute_crps,
-    compute_wape,
-    compute_rmsle,
-    compute_bias,
-    compute_interval_coverage,
-    check_elasticity_sign,
-    check_elasticity_magnitude,
-    temporal_split,
-)
 
 # COMMAND ----------
 
@@ -73,7 +62,6 @@ from pricing.evaluation.metrics import (
 
 # COMMAND ----------
 
-# from pricing.evaluation.metrics import compute_margin_uplift
 # uplift = compute_margin_uplift(current_policy_df, model_policy_df, response_surface)
 # print(f"Margin uplift: {uplift['uplift_pct']:.1f}%")
 
