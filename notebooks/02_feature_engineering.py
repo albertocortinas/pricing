@@ -2,6 +2,14 @@
 
 # COMMAND ----------
 
+# MAGIC %pip install -e /Workspace/Repos/aalsinat@damm.com/pricing --quiet
+
+# COMMAND ----------
+
+dbutils.library.restartPython()
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC # Feature Engineering
 
@@ -39,7 +47,7 @@ waterfall.display()
 # COMMAND ----------
 
 with_ratios = build_price_ratios(waterfall, method="rolling_median")
-with_ratios.select("establecimiento", "material", "periodo", "tarifa", "reference_price", "price_ratio").display()
+with_ratios.select("Establecimiento", "Material", "`Week-Month-Year`", "tarifa", "reference_price", "price_ratio").display()
 
 # COMMAND ----------
 

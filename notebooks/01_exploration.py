@@ -2,6 +2,14 @@
 
 # COMMAND ----------
 
+# MAGIC %pip install -e /Workspace/Repos/aalsinat@damm.com/pricing --quiet
+
+# COMMAND ----------
+
+dbutils.library.restartPython()
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC # Data Exploration & Diagnostics (Phase 1)
 
