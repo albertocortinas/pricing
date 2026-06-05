@@ -58,3 +58,31 @@ REFERENCE_FIELDS = {
         ("CBR", "CBRDesc"),
     ],
 }
+
+# ---------------------------------------------------------------------------
+# Model configuration
+# ---------------------------------------------------------------------------
+
+# Plausible elasticity band from literature (Tellis 1988, Bijmolt et al. 2005)
+ELASTICITY_PRIOR_RANGE = (-2.5, -0.2)
+
+# December 1 tariff step — used as quasi-experiment anchor
+TARIFF_STEP_DATE = "12-01"
+
+# Hierarchical shrinkage grouping columns
+SHRINKAGE_HIERARCHY = {
+    "material": ["Lineadeproducto", "Marca"],
+    "establecimiento": ["Categoria", "Provincia"],
+}
+
+# Temporal granularity per price component
+TEMPORAL_GRANULARITY = {
+    "base_price": "monthly",
+    "promotions": "weekly",
+}
+
+# Waterfall classification for pocket price computation
+ON_INVOICE_CODES = {"100", "210", "300", "420", "740"}
+OFF_INVOICE_CODES = {"920"}
+COST_CODES = {"858", "859", "861", "890", "954", "956"}
+DISTRIBUTOR_CODES = {"900", "901", "902"}

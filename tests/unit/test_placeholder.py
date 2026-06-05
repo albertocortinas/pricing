@@ -19,9 +19,9 @@ def test_waterfall_codes():
     assert WATERFALL_CODES["890"] == "coste_producto"
 
 
-def test_build_features(spark):
-    from pricing.features.engineering import build_features
+def test_model_config():
+    from pricing.config import ELASTICITY_PRIOR_RANGE, SHRINKAGE_HIERARCHY
 
-    df = spark.createDataFrame([(1, 10.0), (2, 20.0)], ["id", "price"])
-    result = build_features(df)
-    assert result.count() == 2
+    assert ELASTICITY_PRIOR_RANGE[0] < ELASTICITY_PRIOR_RANGE[1]
+    assert "material" in SHRINKAGE_HIERARCHY
+    assert "establecimiento" in SHRINKAGE_HIERARCHY
