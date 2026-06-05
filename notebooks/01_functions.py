@@ -2,6 +2,14 @@
 
 # COMMAND ----------
 
+# MAGIC %pip install pymc arviz pytensor --quiet
+
+# COMMAND ----------
+
+dbutils.library.restartPython()
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC # Shared Functions
 # MAGIC

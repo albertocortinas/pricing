@@ -30,7 +30,7 @@ line-length = 120
 [tool.ruff.lint.per-file-ignores]
 # Notebooks use %run for shared scope — ruff can't see injected names
 "notebooks/00_config.py" = ["E402"]
-"notebooks/01_functions.py" = ["F821"]
+"notebooks/01_functions.py" = ["F821", "E402", "F404"]
 "notebooks/02_exploration.py" = ["F821"]
 "notebooks/03_feature_engineering.py" = ["F821"]
 "notebooks/04_model_training.py" = ["F821"]
