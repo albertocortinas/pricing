@@ -13,10 +13,10 @@ def summarize_price_band(df: DataFrame, group_cols: list[str] | None = None) -> 
     ----------
     group_cols : list[str] | None
         Columns defining the segment (e.g. ["Marca", "Categoria"]).
-        Defaults to ``["material"]``.
+        Defaults to ``["Material"]``.
     """
     if group_cols is None:
-        group_cols = ["material"]
+        group_cols = ["Material"]
 
     return (
         df.groupBy(*group_cols)
@@ -35,7 +35,7 @@ def summarize_price_band(df: DataFrame, group_cols: list[str] | None = None) -> 
 def summarize_leakage(df: DataFrame, group_cols: list[str] | None = None) -> DataFrame:
     """Total and per-code leakage from tarifa to pocket_price, by segment."""
     if group_cols is None:
-        group_cols = ["material"]
+        group_cols = ["Material"]
 
     leakage_cols = [
         "obsequios", "descuento", "promo", "amortizacion", "rappel", "colaboracion",
@@ -59,13 +59,13 @@ def flag_sparse_cells(
 ) -> DataFrame:
     """Identify cells with fewer than *min_periods* observations."""
     if group_cols is None:
-        group_cols = ["establecimiento", "material"]
+        group_cols = ["Establecimiento", "Material"]
 
     counts = df.groupBy(*group_cols).agg(F.count("*").alias("n_periods"))
     return counts.withColumn("is_sparse", (F.col("n_periods") < min_periods).cast("int"))
 
 
-def flag_negative_volume(df: DataFrame, volume_col: str = "volumen") -> DataFrame:
+def flag_negative_volume(df: DataFrame, volume_col: str = "Litros") -> DataFrame:
     """Flag rows where volume <= 0 (returns / lag artefacts)."""
     return df.withColumn(
         "has_negative_volume",

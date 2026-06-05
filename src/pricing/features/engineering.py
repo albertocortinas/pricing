@@ -1,4 +1,8 @@
-"""Feature engineering for the pricing waterfall and SCAN*PRO model."""
+"""Feature engineering for the pricing waterfall and SCAN*PRO model.
+
+The source tables are already in wide format: waterfall codes (050, 210, etc.)
+are column names, not row values.
+"""
 
 from __future__ import annotations
 
@@ -7,47 +11,69 @@ from pyspark.sql import DataFrame, Window
 
 from pricing import config
 
+# Canonical join keys matching the real schema
+JOIN_COLS = ["Establecimiento", "Material", "Week-Month-Year", "Distribuidor"]
+
+# Codes that appear in BOTH ventas and margen — use ventas as source of truth
+_OVERLAPPING_CODES = {"100", "210", "300", "420", "740"}
+
 
 # ---------------------------------------------------------------------------
-# Step 2a — Pocket price waterfall
+# Pocket price waterfall
 # ---------------------------------------------------------------------------
 
 def build_pocket_price_waterfall(ventas_df: DataFrame, margen_df: DataFrame) -> DataFrame:
     """Join ventas + margen and compute the pocket-price waterfall.
 
-    Returns a DataFrame with one row per (establecimiento, material, periodo,
-    distribuidor) and named columns for each waterfall component plus computed
-    aggregates: venta_neta, pocket_price, pocket_margin.
+    Both DataFrames are already wide: waterfall codes are columns (``050``,
+    ``210``, ``890``, etc.).  Overlapping code columns (100–740) are taken
+    from ventas; cost and distributor codes come from margen.
+
+    Returns one row per (Establecimiento, Material, Week-Month-Year,
+    Distribuidor) with named waterfall columns plus venta_neta, pocket_price,
+    pocket_margin.
     """
-    join_cols = ["establecimiento", "material", "periodo", "distribuidor"]
+    # Rename code columns in ventas to their waterfall names
+    v = ventas_df
+    for code in sorted(config.VENTAS_CODES):
+        if code in config.WATERFALL_CODES and code in v.columns:
+            name = config.WATERFALL_CODES[code]
+            v = v.withColumn(name, F.col(f"`{code}`")).drop(F.col(f"`{code}`"))
 
-    # Pivot waterfall codes into named columns from ventas
-    ventas_pivot = _pivot_codes(ventas_df, config.VENTAS_CODES, join_cols)
-    # Pivot waterfall codes into named columns from margen
-    margen_pivot = _pivot_codes(margen_df, config.MARGEN_CODES, join_cols)
+    # From margen, only take codes NOT already in ventas (to avoid ambiguity)
+    margen_only_codes = {
+        c for c in config.MARGEN_CODES
+        if c in config.WATERFALL_CODES and c not in _OVERLAPPING_CODES and c in margen_df.columns
+    }
+    m_select_cols = [F.col(f"`{c}`") for c in JOIN_COLS]
+    for code in sorted(margen_only_codes):
+        name = config.WATERFALL_CODES[code]
+        m_select_cols.append(F.col(f"`{code}`").alias(name))
 
-    df = ventas_pivot.join(margen_pivot, on=join_cols, how="outer")
+    m = margen_df.select(*m_select_cols)
+
+    # Join
+    df = v.join(m, on=JOIN_COLS, how="left")
 
     # Fill nulls with 0 for arithmetic
-    code_cols = [config.WATERFALL_CODES[c] for c in config.WATERFALL_CODES]
-    for col_name in code_cols:
-        if col_name in df.columns:
-            df = df.withColumn(col_name, F.coalesce(F.col(col_name), F.lit(0.0)))
+    all_names = [config.WATERFALL_CODES[c] for c in config.WATERFALL_CODES if config.WATERFALL_CODES[c] in df.columns]
+    for col_name in all_names:
+        df = df.withColumn(col_name, F.coalesce(F.col(col_name), F.lit(0.0)))
 
     # On-invoice deductions
-    on_invoice = [config.WATERFALL_CODES[c] for c in config.ON_INVOICE_CODES if c in config.WATERFALL_CODES]
+    on_invoice = [config.WATERFALL_CODES[c] for c in config.ON_INVOICE_CODES if config.WATERFALL_CODES.get(c) in df.columns]
     on_invoice_sum = sum(F.col(c) for c in on_invoice) if on_invoice else F.lit(0.0)
 
     # Off-invoice deductions
-    off_invoice = [config.WATERFALL_CODES[c] for c in config.OFF_INVOICE_CODES if c in config.WATERFALL_CODES]
+    off_invoice = [config.WATERFALL_CODES[c] for c in config.OFF_INVOICE_CODES if config.WATERFALL_CODES.get(c) in df.columns]
     off_invoice_sum = sum(F.col(c) for c in off_invoice) if off_invoice else F.lit(0.0)
 
     # Costs
-    costs = [config.WATERFALL_CODES[c] for c in config.COST_CODES if c in config.WATERFALL_CODES]
+    costs = [config.WATERFALL_CODES[c] for c in config.COST_CODES if config.WATERFALL_CODES.get(c) in df.columns]
     costs_sum = sum(F.col(c) for c in costs) if costs else F.lit(0.0)
 
     # Distributor spread
-    dist = [config.WATERFALL_CODES[c] for c in config.DISTRIBUTOR_CODES if c in config.WATERFALL_CODES]
+    dist = [config.WATERFALL_CODES[c] for c in config.DISTRIBUTOR_CODES if config.WATERFALL_CODES.get(c) in df.columns]
     dist_sum = sum(F.col(c) for c in dist) if dist else F.lit(0.0)
 
     df = (
@@ -59,31 +85,8 @@ def build_pocket_price_waterfall(ventas_df: DataFrame, margen_df: DataFrame) -> 
     return df
 
 
-def _pivot_codes(df: DataFrame, code_set: set[str], join_cols: list[str]) -> DataFrame:
-    """Pivot a fact table from long to wide using waterfall code mappings.
-
-    Expects the input DataFrame to have columns: join_cols + [codigo, importe].
-    """
-    # Map code → name; filter to relevant codes
-    code_name_map = {c: config.WATERFALL_CODES[c] for c in code_set if c in config.WATERFALL_CODES}
-    if not code_name_map:
-        return df.select(*join_cols).dropDuplicates()
-
-    mapping_expr = F.create_map([F.lit(x) for pair in code_name_map.items() for x in pair])
-    filtered = df.filter(F.col("codigo").isin(list(code_name_map.keys())))
-    filtered = filtered.withColumn("nombre", mapping_expr[F.col("codigo")])
-
-    pivoted = (
-        filtered
-        .groupBy(*join_cols)
-        .pivot("nombre", list(code_name_map.values()))
-        .agg(F.sum("importe"))
-    )
-    return pivoted
-
-
 # ---------------------------------------------------------------------------
-# Step 2b — Price ratios (SCAN*PRO price variable)
+# Price ratios (SCAN*PRO price variable)
 # ---------------------------------------------------------------------------
 
 def build_price_ratios(df: DataFrame, method: str = "rolling_median", window_months: int = 6) -> DataFrame:
@@ -92,19 +95,17 @@ def build_price_ratios(df: DataFrame, method: str = "rolling_median", window_mon
     Parameters
     ----------
     method : str
-        ``"rolling_median"`` — rolling median over *window_months*.
-        ``"pre_tariff"`` — median price before the Dec-1 tariff step.
+        ``"rolling_median"`` — rolling average over *window_months*.
+        ``"pre_tariff"`` — average price before the Dec-1 tariff step.
     """
-    w = Window.partitionBy("establecimiento", "material").orderBy("periodo")
+    w = Window.partitionBy("Establecimiento", "Material").orderBy("Week-Month-Year")
 
     if method == "rolling_median":
-        # Use avg as a window-compatible approximation (median not supported in Spark window frames)
         rolling_w = w.rowsBetween(-window_months, -1)
         df = df.withColumn("reference_price", F.avg("tarifa").over(rolling_w))
     else:  # pre_tariff
-        # Median of pre-December prices as reference
-        month_col = F.month(F.col("periodo"))
-        pre_dec_w = Window.partitionBy("establecimiento", "material")
+        month_col = F.month(F.col("`Week-Month-Year`"))
+        pre_dec_w = Window.partitionBy("Establecimiento", "Material")
         df = df.withColumn(
             "reference_price",
             F.avg(
@@ -124,7 +125,7 @@ def build_price_ratios(df: DataFrame, method: str = "rolling_median", window_mon
 
 
 # ---------------------------------------------------------------------------
-# Step 2c — Full model features
+# Full model features
 # ---------------------------------------------------------------------------
 
 def build_model_features(
@@ -133,29 +134,27 @@ def build_model_features(
     dim_establecimiento: DataFrame,
 ) -> DataFrame:
     """Enrich the waterfall DataFrame with hierarchy, temporal, and log features."""
-    # Join dimension attributes
-    mat_cols = ["material", "Marca", "Lineadeproducto"]
+    # Join dimension attributes — Material
     mat_select = dim_material.select(
-        F.col("Material").alias("material"),
-        *[F.col(c) for c in mat_cols[1:]],
-    ).dropDuplicates(["material"])
-    df = df.join(mat_select, on="material", how="left")
+        "Material", "Marca", "Lineadeproducto",
+    ).dropDuplicates(["Material"])
+    df = df.join(mat_select, on="Material", how="left")
 
-    est_cols = ["establecimiento", "Categoria", "Provincia"]
+    # Join dimension attributes — Establecimiento
     est_select = dim_establecimiento.select(
-        F.col("Establecimiento").alias("establecimiento"),
-        *[F.col(c) for c in est_cols[1:]],
-    ).dropDuplicates(["establecimiento"])
-    df = df.join(est_select, on="establecimiento", how="left")
+        "Establecimiento", "Categoria",
+    ).dropDuplicates(["Establecimiento"])
+    df = df.join(est_select, on="Establecimiento", how="left")
 
     # Temporal features
+    periodo = F.col("`Week-Month-Year`")
     df = (
         df
-        .withColumn("month", F.month("periodo"))
-        .withColumn("week", F.weekofyear("periodo"))
+        .withColumn("month", F.month(periodo))
+        .withColumn("week", F.weekofyear(periodo))
         .withColumn(
             "is_post_tariff_step",
-            (F.month("periodo") >= 12).cast("int"),
+            (F.month(periodo) >= 12).cast("int"),
         )
     )
 
@@ -172,11 +171,12 @@ def build_model_features(
                 log_name,
                 F.when(F.col(col_name) > 0, F.log(F.col(col_name))),
             )
-    # Volume log (assumes a "volumen" column exists)
-    if "volumen" in df.columns:
+
+    # Volume log — use Litros as the volume measure
+    if "Litros" in df.columns:
         df = df.withColumn(
             "ln_volume",
-            F.when(F.col("volumen") > 0, F.log(F.col("volumen"))),
+            F.when(F.col("Litros") > 0, F.log(F.col("Litros"))),
         )
 
     return df

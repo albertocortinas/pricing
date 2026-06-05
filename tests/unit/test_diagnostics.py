@@ -2,22 +2,21 @@
 
 from datetime import date
 
-import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.types import DoubleType, StringType, StructField, StructType, DateType
 
 
-@pytest.fixture
+@__import__("pytest").fixture
 def waterfall_df(spark: SparkSession):
-    """Synthetic waterfall DataFrame."""
+    """Synthetic waterfall DataFrame matching real column names."""
     schema = StructType([
-        StructField("establecimiento", StringType()),
-        StructField("material", StringType()),
-        StructField("periodo", DateType()),
+        StructField("Establecimiento", StringType()),
+        StructField("Material", StringType()),
+        StructField("Week-Month-Year", DateType()),
         StructField("tarifa", DoubleType()),
         StructField("descuento", DoubleType()),
         StructField("pocket_price", DoubleType()),
-        StructField("volumen", DoubleType()),
+        StructField("Litros", DoubleType()),
     ])
     rows = [
         ("E1", "M1", date(2024, 1, 1), 100.0, 5.0, 90.0, 50.0),
@@ -32,11 +31,11 @@ def test_flag_sparse_cells(spark, waterfall_df):
     from pricing.diagnostics.waterfall import flag_sparse_cells
 
     result = flag_sparse_cells(waterfall_df, min_periods=3)
-    rows = {(r["establecimiento"], r["material"]): r for r in result.collect()}
+    rows = {(r["Establecimiento"], r["Material"]): r for r in result.collect()}
 
-    # E1, M1 has 3 observations → not sparse (min=3)
+    # E1, M1 has 3 observations -> not sparse (min=3)
     assert rows[("E1", "M1")]["is_sparse"] == 0
-    # E2, M2 has 1 observation → sparse
+    # E2, M2 has 1 observation -> sparse
     assert rows[("E2", "M2")]["is_sparse"] == 1
 
 
@@ -46,14 +45,14 @@ def test_flag_negative_volume(spark, waterfall_df):
     result = flag_negative_volume(waterfall_df)
     flagged = result.filter("has_negative_volume = 1").collect()
     assert len(flagged) == 1
-    assert flagged[0]["volumen"] == -10.0
+    assert flagged[0]["Litros"] == -10.0
 
 
 def test_summarize_price_band(spark, waterfall_df):
     from pricing.diagnostics.waterfall import summarize_price_band
 
-    result = summarize_price_band(waterfall_df, group_cols=["material"])
-    rows = {r["material"]: r for r in result.collect()}
+    result = summarize_price_band(waterfall_df, group_cols=["Material"])
+    rows = {r["Material"]: r for r in result.collect()}
     assert rows["M1"]["n_obs"] == 3
     assert rows["M1"]["p50"] == 90.0
     assert rows["M2"]["n_obs"] == 1

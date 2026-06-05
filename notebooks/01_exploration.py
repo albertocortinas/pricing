@@ -20,7 +20,6 @@ from pricing.diagnostics.waterfall import (
 
 ventas = load_fact_ventas(spark)
 margen = load_fact_margen(spark)
-dim_mat = load_dim_material(spark)
 
 # COMMAND ----------
 
@@ -43,7 +42,7 @@ waterfall.describe().display()
 
 # COMMAND ----------
 
-price_bands = summarize_price_band(waterfall, group_cols=["material"])
+price_bands = summarize_price_band(waterfall, group_cols=["Material"])
 price_bands.display()
 
 # COMMAND ----------
@@ -53,7 +52,7 @@ price_bands.display()
 
 # COMMAND ----------
 
-leakage = summarize_leakage(waterfall, group_cols=["material"])
+leakage = summarize_leakage(waterfall, group_cols=["Material"])
 leakage.display()
 
 # COMMAND ----------
