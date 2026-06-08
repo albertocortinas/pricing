@@ -4,7 +4,7 @@ description: >-
   Conventions and domain knowledge for the Damm HORECA pricing/margin codebase
   on Databricks (PySpark + Unity Catalog). Use this skill whenever working on
   anything touching the damm_bronze_des / damm_silver_des / damm_gold_des
-  catalogs, the pricing waterfall, pocket price or pocket margin computation,
+  catalogs, the pricing waterfall, venta neta or margen computation,
   demand elasticity modelling, the weekly ventas/margen disagg fact tables, or
   the dim_materialcomercial / dim_establecimiento dimensions — even when the
   request just mentions "the pricing model", "the margin pipeline", "elasticity",
@@ -16,7 +16,8 @@ description: >-
 # Damm HORECA pricing & margin (Databricks)
 
 This skill encodes the conventions of the Damm pricing/margin codebase so that
-queries, PySpark transforms, and modelling work stay consistent with how the
+queries, PySpark transforms, and modelling work stay consistent with the
+domain terminology (tarifa, precio en factura, venta neta, margen) and how the
 data is actually laid out. The full table map, waterfall code dictionary,
 reference fields, and model configuration live in `references/schema.md` — read
 it before touching anything that references these tables or codes; the values
@@ -51,22 +52,23 @@ Join facts to dimensions on the material and establecimiento keys.
 
 Revenue/discount components come from the **ventas** fact; cost and distributor
 components come from the **margen** fact. Each component is a numeric code. The
-codes are grouped for pocket-price/pocket-margin computation as follows:
+codes are grouped for the waterfall computation (tarifa → precio en factura → venta neta → margen) as follows:
 
-- **List / base**: `050` (tarifa) — the starting list price.
+- **Tarifa** (list / base): `050` (tarifa) — the starting tarifa.
 - **On-invoice** (`100`, `210`, `300`): obsequios, descuento, promo — deducted
-  from list to reach the invoice price.
-- **Off-invoice** (`420`, `740`): amortización, rappel — deducted from invoice
-  to reach the **pocket price**.
+  from tarifa to reach the **precio en factura**.
+- **Off-invoice** (`420`, `740`): amortización, rappel — deducted from precio
+  en factura to reach the **venta neta**.
 - **Costs** (`858`, `859`, `861`, `890`, `954`, `956`): impuestos especiales,
   ecotasa/punto verde, logístico, producto, mano de obra IB, amortización IB —
-  deducted from pocket price to reach **pocket margin**.
+  deducted from venta neta to reach **margen**.
 - **Distributor** (`900`, `901`, `902`, `920`): tarifa, impuestos, PA,
   colaboración — distributor-side components.
 
-When computing pocket price or pocket margin, classify codes by these groups
+When computing venta neta or margen, classify codes by these groups
 rather than listing literals inline — the canonical sets live in
-`references/schema.md` and in the codebase constants. If a code appears that is
+`references/schema.md` and in the codebase constants. The waterfall levels are:
+tarifa → precio en factura → venta neta → margen. If a code appears that is
 not in the dictionary (e.g. an `_agua` variant), check `references/schema.md`
 for the water-specific codes before assuming it belongs to a group.
 

@@ -8,7 +8,7 @@ this file to match.
 1. Tables
 2. Waterfall code dictionary
 3. Code → fact-table sourcing
-4. Pocket price / pocket margin groupings
+4. Agrupaciones del waterfall (tarifa → precio en factura → venta neta → margen)
 5. Reference fields (dimension lookups)
 6. Model configuration
 7. Databricks MCP endpoints
@@ -32,22 +32,22 @@ Grain: both facts are **weekly**, disaggregated to material × distribuidor.
 
 | Code | Name | Bucket |
 |------|------|--------|
-| `050` | tarifa | list / base (revenue) |
-| `100` | obsequios | revenue / discount |
-| `210` | descuento | revenue / discount |
-| `300` | promo | revenue / discount |
-| `420` | amortizacion | revenue / discount |
-| `740` | rappel | revenue / discount |
-| `858` | impuestos_especiales | cost |
-| `859` | ecotasa_punto_verde | cost |
-| `861` | coste_logistico | cost |
-| `890` | coste_producto | cost |
-| `954` | mano_obra_ib | cost |
-| `956` | amortizacion_ib | cost |
-| `900` | tarifa_distribuidor | distributor |
-| `901` | impuestos_distribuidor | distributor |
-| `902` | pa_distribuidor | distributor |
-| `920` | colaboracion | distributor |
+| `050` | tarifa | tarifa (base) |
+| `100` | obsequios | on-invoice (tarifa → precio en factura) |
+| `210` | descuento | on-invoice (tarifa → precio en factura) |
+| `300` | promo | on-invoice (tarifa → precio en factura) |
+| `420` | amortizacion | off-invoice (precio en factura → venta neta) |
+| `740` | rappel | off-invoice (precio en factura → venta neta) |
+| `858` | impuestos_especiales | coste (venta neta → margen) |
+| `859` | ecotasa_punto_verde | coste (venta neta → margen) |
+| `861` | coste_logistico | coste (venta neta → margen) |
+| `890` | coste_producto | coste (venta neta → margen) |
+| `954` | mano_obra_ib | coste (venta neta → margen) |
+| `956` | amortizacion_ib | coste (venta neta → margen) |
+| `900` | tarifa_distribuidor | distribuidor |
+| `901` | impuestos_distribuidor | distribuidor |
+| `902` | pa_distribuidor | distribuidor |
+| `920` | colaboracion | distribuidor |
 
 ---
 
@@ -68,26 +68,26 @@ the main dictionary. Check this list before deciding a code is unknown.
 
 ---
 
-## 4. Pocket price / pocket margin groupings
+## 4. Agrupaciones del waterfall (tarifa → precio en factura → venta neta → margen)
 
 ```python
-ON_INVOICE_CODES  = {"100", "210", "300"}                       # list  -> invoice price
-OFF_INVOICE_CODES = {"420", "740"}                              # invoice -> pocket price
-COST_CODES        = {"858", "859", "861", "890", "954", "956"}  # pocket price -> pocket margin
-DISTRIBUTOR_CODES = {"900", "901", "902", "920"}                # distributor side
+ON_INVOICE_CODES  = {"100", "210", "300"}                       # tarifa → precio en factura
+OFF_INVOICE_CODES = {"420", "740"}                              # precio en factura → venta neta
+COST_CODES        = {"858", "859", "861", "890", "954", "956"}  # venta neta → margen
+DISTRIBUTOR_CODES = {"900", "901", "902", "920"}                # distribuidor
 ```
 
 Waterfall direction (confirm the exact arithmetic/signs against the pipeline
 before relying on it):
 
 ```
-list price (050)
+tarifa (050)
   − on-invoice (100, 210, 300)
-  = invoice price
+  = precio en factura
   − off-invoice (420, 740)
-  = pocket price
-  − costs (858, 859, 861, 890, 954, 956)
-  = pocket margin
+  = venta neta
+  − costes (858, 859, 861, 890, 954, 956)
+  = margen
 ```
 
 Always classify by these sets, never by inline literals — adding a new code then
