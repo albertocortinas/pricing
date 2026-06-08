@@ -96,10 +96,10 @@ TEMPORAL_GRANULARITY = {
 }
 
 # Waterfall classification for pocket price computation
-ON_INVOICE_CODES = {"100", "210", "300", "420", "740"}
-OFF_INVOICE_CODES = {"920"}
+ON_INVOICE_CODES = {"100", "210", "300"}
+OFF_INVOICE_CODES = {"420", "740"}
 COST_CODES = {"858", "859", "861", "890", "954", "956"}
-DISTRIBUTOR_CODES = {"900", "901", "902"}
+DISTRIBUTOR_CODES = {"900", "901", "902", "920"}
 
 # COMMAND ----------
 

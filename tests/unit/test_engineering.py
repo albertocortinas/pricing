@@ -23,10 +23,10 @@ VENTAS_CODES = {"050", "100", "210", "300", "420", "740", "100_agua"}
 MARGEN_CODES = set(WATERFALL_CODES.keys()) - VENTAS_CODES | {
     "120_agua", "140_agua", "160_agua", "170_agua", "180_agua", "190_agua",
 }
-ON_INVOICE_CODES = {"100", "210", "300", "420", "740"}
-OFF_INVOICE_CODES = {"920"}
+ON_INVOICE_CODES = {"100", "210", "300"}
+OFF_INVOICE_CODES = {"420", "740"}
 COST_CODES = {"858", "859", "861", "890", "954", "956"}
-DISTRIBUTOR_CODES = {"900", "901", "902"}
+DISTRIBUTOR_CODES = {"900", "901", "902", "920"}
 
 JOIN_COLS = ["Establecimiento", "Material", "Week-Month-Year", "Distribuidor"]
 _OVERLAPPING_CODES = {"100", "210", "300", "420", "740"}
